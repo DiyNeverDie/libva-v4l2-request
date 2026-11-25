@@ -253,6 +253,8 @@ int v4l2_create_buffers(int video_fd, unsigned int type,
 	buffers.memory = V4L2_MEMORY_MMAP;
 	buffers.count = buffers_count;
 
+	buffers.flags = V4L2_MEMORY_FLAG_NON_COHERENT;
+
 	rc = ioctl(video_fd, VIDIOC_G_FMT, &buffers.format);
 	if (rc < 0) {
 		request_log("Unable to get format for type %d: %s\n", type,
@@ -267,8 +269,8 @@ int v4l2_create_buffers(int video_fd, unsigned int type,
 		return -1;
 	}
 
-	request_log("DEBUG create_bufs type=%u requested=%u created=%u index=%u\n",
-		    type, buffers_count, buffers.count, buffers.index);
+	/*request_log("DEBUG create_bufs type=%u requested=%u created=%u index=%u\n",
+		    type, buffers_count, buffers.count, buffers.index);*/
 
 	if (index_base != NULL)
 		*index_base = buffers.index;
@@ -407,11 +409,11 @@ int v4l2_dequeue_buffer(int video_fd, int request_fd, unsigned int type,
 		return -1;
 	}
 
-	request_log("DEBUG dqbuf type=%u index=%u flags=0x%x bytesused=%u%s\n",
+	/*request_log("DEBUG dqbuf type=%u index=%u flags=0x%x bytesused=%u%s\n",
 		    type, buffer.index, buffer.flags,
 		    v4l2_type_is_mplane(type) ? planes[0].bytesused :
 						buffer.bytesused,
-		    (buffer.flags & V4L2_BUF_FLAG_ERROR) ? " (ERROR)" : "");
+		    (buffer.flags & V4L2_BUF_FLAG_ERROR) ? " (ERROR)" : "");*/
 
 	if (buffer.flags & V4L2_BUF_FLAG_ERROR) {
 		request_log("Dequeued buffer %u (type %u) with error flag\n",

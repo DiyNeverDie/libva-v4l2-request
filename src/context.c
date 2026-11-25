@@ -114,11 +114,17 @@ VAStatus RequestCreateContext(VADriverContextP context, VAConfigID config_id,
 		goto error;
 	}
 
-	rc = v4l2_set_format(driver_data->video_fd, output_type, pixelformat,
-			     picture_width, picture_height);
-	if (rc < 0) {
-		status = VA_STATUS_ERROR_OPERATION_FAILED;
-		goto error;
+	/* OUTPUT already configured by RequestCreateSurfaces2(): a second
+	 * S_FMT would fail with EBUSY. */
+	if (!driver_data->output_configured) {
+		rc = v4l2_set_format(driver_data->video_fd, output_type,
+				     pixelformat, picture_width, picture_height);
+		if (rc < 0) {
+			status = VA_STATUS_ERROR_OPERATION_FAILED;
+			goto error;
+		}
+
+		driver_data->output_configured = true;
 	}
 
 	/*

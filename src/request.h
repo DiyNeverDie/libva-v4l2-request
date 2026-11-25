@@ -55,6 +55,8 @@ struct request_data {
 	int media_fd;
 
 	struct video_format *video_format;
+	VAProfile pending_profile;
+	bool output_configured;
 };
 
 VAStatus VA_DRIVER_INIT_FUNC(VADriverContextP context);

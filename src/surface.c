@@ -73,6 +73,55 @@ VAStatus RequestCreateSurfaces2(VADriverContextP context, unsigned int format,
 
 
         if (!driver_data->video_format) {
+		unsigned int bitstream_pixelformat;
+		unsigned int output_type;
+		bool output_mplane;
+
+		switch (driver_data->pending_profile) {
+		case VAProfileMPEG2Simple:
+		case VAProfileMPEG2Main:
+			bitstream_pixelformat = V4L2_PIX_FMT_MPEG2_SLICE;
+			break;
+
+		case VAProfileH264Main:
+		case VAProfileH264High:
+		case VAProfileH264ConstrainedBaseline:
+		case VAProfileH264MultiviewHigh:
+		case VAProfileH264StereoHigh:
+			bitstream_pixelformat = V4L2_PIX_FMT_H264_SLICE;
+			break;
+
+		case VAProfileHEVCMain:
+			bitstream_pixelformat = V4L2_PIX_FMT_HEVC_SLICE;
+			break;
+
+		default:
+			return VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
+		}
+
+		output_mplane = v4l2_find_format(driver_data->video_fd,
+						 V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
+						 bitstream_pixelformat);
+		if (!output_mplane &&
+		    !v4l2_find_format(driver_data->video_fd,
+				      V4L2_BUF_TYPE_VIDEO_OUTPUT,
+				      bitstream_pixelformat))
+			return VA_STATUS_ERROR_OPERATION_FAILED;
+
+		output_type = v4l2_type_video_output(output_mplane);
+
+		/*
+		 * Configure the OUTPUT (bitstream) queue with the real coded size
+		 * BEFORE negotiating CAPTURE, otherwise cedrus clamps CAPTURE to
+		 * its minimum size (16x32).
+		 */
+		rc = v4l2_set_format(driver_data->video_fd, output_type,
+				     bitstream_pixelformat, width, height);
+		if (rc < 0)
+			return VA_STATUS_ERROR_OPERATION_FAILED;
+
+		driver_data->output_configured = true;
+
 		found = v4l2_find_format(driver_data->video_fd,
 					 V4L2_BUF_TYPE_VIDEO_CAPTURE,
 					 V4L2_PIX_FMT_SUNXI_TILED_NV12);

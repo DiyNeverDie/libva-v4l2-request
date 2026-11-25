@@ -68,6 +68,8 @@ VAStatus RequestCreateConfig(VADriverContextP context, VAProfile profile,
 		return VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
 	}
 
+	driver_data->pending_profile = profile;
+
 	if (attributes_count > V4L2_REQUEST_MAX_CONFIG_ATTRIBUTES)
 		attributes_count = V4L2_REQUEST_MAX_CONFIG_ATTRIBUTES;
 

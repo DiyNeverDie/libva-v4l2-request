@@ -27,6 +27,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <sys/ioctl.h>
@@ -118,6 +119,10 @@ static struct h264_dpb_entry *dpb_lookup(struct object_context *context,
 
 static void dpb_clear_entry(struct h264_dpb_entry *entry, bool reserved)
 {
+	/* dpb_find_entry() returns NULL when every slot is in use. */
+	if (!entry)
+		return;
+
 	memset(entry, 0, sizeof(*entry));
 
 	if (reserved)
@@ -135,6 +140,21 @@ static void dpb_insert(struct object_context *context, VAPictureH264 *pic,
 
 	if (!entry)
 		entry = dpb_find_entry(context);
+
+	if (!entry) {
+		/*
+		 * DPB full: skip the insertion. If the picture is still
+		 * needed, dpb_update() adds it again at the next frame.
+		 */
+		static bool warned;
+
+		if (!warned) {
+			fprintf(stderr, "v4l2-request: DPB full, picture not inserted\n");
+			warned = true;
+		}
+
+		return;
+	}
 
 	memcpy(&entry->pic, pic, sizeof(entry->pic));
 	entry->age = context->dpb.age;
@@ -264,8 +284,12 @@ static void h264_va_picture_to_v4l2(struct request_data *driver_data,
 	if (VAPicture->pic_fields.bits.redundant_pic_cnt_present_flag)
 		pps->flags |= V4L2_H264_PPS_FLAG_REDUNDANT_PIC_CNT_PRESENT;
 
-	/* The scaling matrix is always passed through a dedicated control. */
-	pps->flags |= V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT;
+	/*
+	 * Do NOT force V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT: setting it
+	 * unconditionally makes cedrus apply a matrix the stream never sent,
+	 * corrupting the decoded picture. Set it only when VA-API supplies
+	 * a real IQ matrix.
+	 */
 
 	sps->chroma_format_idc = VAPicture->seq_fields.bits.chroma_format_idc;
 	sps->bit_depth_luma_minus8 = VAPicture->bit_depth_luma_minus8;
@@ -443,8 +467,8 @@ int h264_set_controls(struct request_data *driver_data,
 	h264_va_picture_to_v4l2(driver_data, context, surface,
 				&surface->params.h264.picture,
 				&decode, &pps, &sps);
-	h264_va_matrix_to_v4l2(driver_data, context,
-			       &surface->params.h264.matrix, &matrix);
+	/*h264_va_matrix_to_v4l2(driver_data, context,
+			       &surface->params.h264.matrix, &matrix);*/
 	h264_va_slice_to_v4l2(driver_data, context,
 			      &surface->params.h264.slice,
 			      &surface->params.h264.picture, &slice, &weights);
